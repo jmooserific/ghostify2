@@ -4,7 +4,7 @@ A TypeScript CLI tool to migrate your Tumblr blog posts to Ghost format. This to
 
 ## Features
 
-- ✅ Fetches all posts from any public or private Tumblr blog
+- ✅ Fetches all posts from your Tumblr blog
 - ✅ Supports all Tumblr post types (text, photo, quote, link, chat, audio, video, answer)
 - ✅ Converts Tumblr formatting to Ghost-compatible HTML
 - ✅ Preserves tags, timestamps, and metadata
