@@ -57,10 +57,11 @@ export default class Migrate extends Command {
       // Load configuration
       const config = await loadConfig();
       this.log(chalk.green('✅ Configuration loaded'));
+      this.log(chalk.gray(`👤 Author: ${config.author.name} (${config.author.email})`));
 
       // Initialize components
       const api = new TumblrAPI(config.apiKey);
-      const transformer = new PostTransformer();
+      const transformer = new PostTransformer(config.author);
       const exporter = new GhostExporter();
 
       // Fetch posts from Tumblr
@@ -89,6 +90,7 @@ export default class Migrate extends Command {
 
       this.log(chalk.green('🎉 Migration completed successfully!'));
       this.log(chalk.gray(`📊 Summary: ${posts.length} posts migrated`));
+      this.log(chalk.gray(`👤 Author: ${config.author.name}`));
       this.log(chalk.gray(`📁 File: ${path.resolve(flags.output)}`));
 
     } catch (error) {

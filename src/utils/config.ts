@@ -7,6 +7,11 @@ export interface Config {
   blogName?: string;
   accessToken?: string;
   accessTokenSecret?: string;
+  author: {
+    name: string;
+    email: string;
+    slug: string;
+  };
 }
 
 export async function loadConfig(): Promise<Config> {
@@ -28,6 +33,11 @@ export async function loadConfig(): Promise<Config> {
   const accessToken = process.env.TUMBLR_ACCESS_TOKEN;
   const accessTokenSecret = process.env.TUMBLR_ACCESS_TOKEN_SECRET;
 
+  // Author configuration with defaults
+  const authorName = process.env.GHOST_AUTHOR_NAME || 'Imported User';
+  const authorEmail = process.env.GHOST_AUTHOR_EMAIL || 'imported@example.com';
+  const authorSlug = process.env.GHOST_AUTHOR_SLUG || 'imported-user';
+
   if (!apiKey) {
     throw new Error(
       'TUMBLR_API_KEY environment variable is required. ' +
@@ -40,6 +50,11 @@ export async function loadConfig(): Promise<Config> {
     blogName,
     accessToken,
     accessTokenSecret,
+    author: {
+      name: authorName,
+      email: authorEmail,
+      slug: authorSlug,
+    },
   };
 }
 
@@ -53,6 +68,17 @@ export function validateConfig(config: Config): void {
       'Please replace the placeholder API key with your actual Tumblr API key. ' +
       'You can get one from https://www.tumblr.com/oauth/apps'
     );
+  }
+
+  // Validate author email format
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(config.author.email)) {
+    throw new Error(`Invalid author email format: ${config.author.email}`);
+  }
+
+  // Validate author slug format
+  if (!/^[a-z0-9-]+$/.test(config.author.slug)) {
+    throw new Error(`Invalid author slug format: ${config.author.slug}. Use only lowercase letters, numbers, and hyphens.`);
   }
 }
 
@@ -79,6 +105,12 @@ TUMBLR_BLOG_NAME=your_blog_name.tumblr.com
 # Optional: OAuth tokens for private blogs
 # TUMBLR_ACCESS_TOKEN=your_access_token_here
 # TUMBLR_ACCESS_TOKEN_SECRET=your_access_token_secret_here
+
+# Ghost Import Settings
+# Author information for imported posts
+GHOST_AUTHOR_NAME=Your Name
+GHOST_AUTHOR_EMAIL=your.email@example.com
+GHOST_AUTHOR_SLUG=your-name
 `;
 
     await fs.writeFile(envPath, envContent, 'utf8');

@@ -94,11 +94,17 @@ export interface GhostRole {
   updated_at: string;
 }
 
+export interface AuthorConfig {
+  name: string;
+  email: string;
+  slug: string;
+}
+
 export class PostTransformer {
   private defaultAuthor: GhostAuthor;
 
-  constructor() {
-    this.defaultAuthor = this.createDefaultAuthor();
+  constructor(authorConfig?: AuthorConfig) {
+    this.defaultAuthor = this.createDefaultAuthor(authorConfig);
   }
 
   transform(tumblrPost: TumblrPost): GhostPost {
@@ -322,12 +328,16 @@ export class PostTransformer {
     }));
   }
 
-  private createDefaultAuthor(): GhostAuthor {
+  private createDefaultAuthor(authorConfig?: AuthorConfig): GhostAuthor {
+    const name = authorConfig?.name || 'Imported User';
+    const email = authorConfig?.email || 'imported@example.com';
+    const slug = authorConfig?.slug || 'imported-user';
+    
     return {
       id: this.generateUUID(),
-      name: 'Imported User',
-      slug: 'imported-user',
-      email: 'imported@example.com',
+      name,
+      slug,
+      email,
       status: 'active',
       created_at: format(new Date(), 'yyyy-MM-dd HH:mm:ss'),
       updated_at: format(new Date(), 'yyyy-MM-dd HH:mm:ss'),
@@ -337,7 +347,7 @@ export class PostTransformer {
         created_at: format(new Date(), 'yyyy-MM-dd HH:mm:ss'),
         updated_at: format(new Date(), 'yyyy-MM-dd HH:mm:ss'),
       }],
-      url: '/author/imported-user/',
+      url: `/author/${slug}/`,
     };
   }
 

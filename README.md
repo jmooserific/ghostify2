@@ -8,6 +8,7 @@ A TypeScript CLI tool to migrate your Tumblr blog posts to Ghost format. This to
 - ✅ Supports all Tumblr post types (text, photo, quote, link, chat, audio, video, answer)
 - ✅ Converts Tumblr formatting to Ghost-compatible HTML
 - ✅ Preserves tags, timestamps, and metadata
+- ✅ Customizable author information for imported posts
 - ✅ Exports in Ghost JSON 5.0 format (importable backup format)
 - ✅ Rate limiting and pagination support
 - ✅ Beautiful CLI interface with progress indicators
@@ -45,8 +46,15 @@ cp env.example .env
 
 3. Edit `.env` and add your credentials:
 ```env
+# Tumblr API Credentials
 TUMBLR_API_KEY=your_actual_api_key_here
 TUMBLR_BLOG_NAME=your_blog_name.tumblr.com
+
+# Ghost Import Settings
+# Author information for imported posts
+GHOST_AUTHOR_NAME=Your Name
+GHOST_AUTHOR_EMAIL=your.email@example.com
+GHOST_AUTHOR_SLUG=your-name
 ```
 
 ## Usage
@@ -82,6 +90,27 @@ npm run build
 - `--limit, -l`: Maximum number of posts to migrate (default: 1000)
 - `--include-private`: Include private posts (requires OAuth tokens)
 - `--create-dirs`: Create output directories if they don't exist (default: true)
+
+## Author Configuration
+
+Since Tumblr doesn't include author information for posts, you can specify your own author details that will be used for all imported posts. Configure this in your `.env` file:
+
+```env
+# Author information for imported posts
+GHOST_AUTHOR_NAME=John Doe
+GHOST_AUTHOR_EMAIL=john.doe@example.com
+GHOST_AUTHOR_SLUG=john-doe
+```
+
+**Requirements:**
+- `GHOST_AUTHOR_NAME`: Your full name (required)
+- `GHOST_AUTHOR_EMAIL`: A valid email address (required)
+- `GHOST_AUTHOR_SLUG`: URL-friendly version of your name (required, lowercase letters, numbers, and hyphens only)
+
+If not specified, the tool will use these defaults:
+- Name: "Imported User"
+- Email: "imported@example.com"
+- Slug: "imported-user"
 
 ## Importing to Ghost
 
@@ -152,7 +181,15 @@ To support new Tumblr post types, edit `src/transform/formatPost.ts` and add a n
    - Check your internet connection
    - Verify the blog name format
 
-4. **Import fails in Ghost**
+4. **"Invalid author email format"**
+   - Make sure your `GHOST_AUTHOR_EMAIL` is a valid email address
+   - Check for typos in the email format
+
+5. **"Invalid author slug format"**
+   - Use only lowercase letters, numbers, and hyphens in `GHOST_AUTHOR_SLUG`
+   - Example: `john-doe`, `my-name-123`
+
+6. **Import fails in Ghost**
    - Ensure the JSON file is valid
    - Check that all required fields are present
    - Try importing a smaller subset first
