@@ -2,15 +2,15 @@
   "name": "ghostify2",
   "version": "1.0.0",
   "description": "CLI tool to migrate Tumblr blog posts to Ghost format",
-  "main": "dist/index.js",
+  "main": "dist/src/index.js",
   "bin": {
     "ghostify": "./bin/ghostify.js"
   },
   "scripts": {
     "build": "tsc && npm run postbuild",
-    "postbuild": "cp dist/bin/ghostify.js bin/ghostify.js && chmod +x bin/ghostify.js",
+    "postbuild": "cp dist/src/bin/ghostify.js bin/ghostify.js && chmod +x bin/ghostify.js",
     "dev": "ts-node src/index.ts",
-    "start": "node dist/index.js",
+    "start": "node dist/src/index.js",
     "test": "vitest",
     "lint": "eslint src/**/*.ts",
     "format": "prettier --write src/**/*.ts"
@@ -41,7 +41,7 @@
   "oclif": {
     "bin": "ghostify",
     "dirname": "ghostify",
-    "commands": "./dist/commands",
+    "commands": "./dist/src/commands",
     "plugins": [
       "@oclif/plugin-help"
     ]
