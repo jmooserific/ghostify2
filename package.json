@@ -1,0 +1,49 @@
+{
+  "name": "ghostify2",
+  "version": "1.0.0",
+  "description": "CLI tool to migrate Tumblr blog posts to Ghost format",
+  "main": "dist/index.js",
+  "bin": {
+    "ghostify": "./bin/ghostify.js"
+  },
+  "scripts": {
+    "build": "tsc && npm run postbuild",
+    "postbuild": "cp dist/bin/ghostify.js bin/ghostify.js && chmod +x bin/ghostify.js",
+    "dev": "ts-node src/index.ts",
+    "start": "node dist/index.js",
+    "test": "vitest",
+    "lint": "eslint src/**/*.ts",
+    "format": "prettier --write src/**/*.ts"
+  },
+  "keywords": ["tumblr", "ghost", "migration", "cli", "blog"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@oclif/command": "^1.8.0",
+    "@oclif/core": "^2.0.0",
+    "axios": "^1.6.0",
+    "chalk": "^4.1.2",
+    "date-fns": "^2.30.0",
+    "fs-extra": "^11.1.1",
+    "dotenv": "^16.3.1"
+  },
+  "devDependencies": {
+    "@types/fs-extra": "^11.0.1",
+    "@types/node": "^20.0.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "eslint": "^8.0.0",
+    "prettier": "^3.0.0",
+    "ts-node": "^10.9.0",
+    "typescript": "^5.0.0",
+    "vitest": "^1.0.0"
+  },
+  "oclif": {
+    "bin": "ghostify",
+    "dirname": "ghostify",
+    "commands": "./dist/commands",
+    "plugins": [
+      "@oclif/plugin-help"
+    ]
+  }
+} 

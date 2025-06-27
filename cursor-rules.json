@@ -1,0 +1,89 @@
+{
+  "language": "typescript",
+  "projectType": "cli-app",
+  "preferredLibraries": [
+    "@oclif/command",
+    "chalk",
+    "fs-extra",
+    "axios",
+    "date-fns"
+  ],
+  "fileStructure": {
+    "src": [
+      "commands directory for CLI commands",
+      "api/tumblr.ts for Tumblr API requests",
+      "transform/formatPost.ts to convert Tumblr post -> Ghost format",
+      "export/jsonWriter.ts to write final Ghost-compatible JSON",
+      "utils for shared helpers",
+      "index.ts to orchestrate fetching, transforming, and exporting"
+    ],
+    "bin": ["cli.ts as thin Oclif launcher"],
+    "config": [".env for Tumblr API credentials"],
+    "test": ["unit tests for each command and transformer"]
+  },
+  "rules": {
+    "style": {
+      "semi": true,
+      "quotes": "single",
+      "trailingComma": "all",
+      "indent": 2
+    },
+    "typescript": {
+      "strict": true,
+      "noImplicitAny": true,
+      "preferInterfaces": true,
+      "explicitFunctionReturnTypes": true,
+      "moduleResolution": "node",
+      "esModuleInterop": true
+    },
+    "oclifCore": {
+      "commandFilesUseDefaultExport": true,
+      "commandClassExtends": "@oclif/command",
+      "flagsAreTyped": true,
+      "flagsHaveDescriptions": true,
+      "eachCommandExportsRun": false,
+      "argsAreTyped": true
+    },
+    "cliDesign": {
+      "singleCommandPerFile": true,
+      "noHardcodedPaths": true,
+      "chalkForOutput": true,
+      "fsExtraForFileOps": true,
+      "commandHelpIncludesExample": true,
+      "minimalGlobalState": true
+    },
+    "imports": {
+      "groupOrder": ["builtin", "external", "internal"],
+      "newlineBetweenGroups": true
+    },
+    "testing": {
+      "preferVitestOrJest": true,
+      "eachCommandHasTest": true,
+      "avoidTestingCLIWrapperDirectly": true
+    },
+    "api": {
+      "useAxiosOverFetch": true,
+      "avoidHardcodedUrls": true,
+      "useDotenvForSecrets": true,
+      "paginateTumblrApi": true,
+      "logRateLimitsIfAvailable": true
+    },
+    "dataTransform": {
+      "defineGhostSchemaTypes": true,
+      "validateTransformedData": true,
+      "ensureAllPostsHaveRequiredGhostFields": true,
+      "normalizeTumblrMediaUrls": true
+    },
+    "filesystem": {
+      "jsonFilesShouldBePrettyPrinted": true,
+      "outputGoesToDistOrExportFolder": true,
+      "createOutputDirIfMissing": true
+    },
+    "ghost": {
+      "targetFormat": "Ghost JSON 5.0 (importable backup format)",
+      "requiredFields": ["posts", "tags", "users"],
+      "defaultAuthorIfMissing": "Imported User",
+      "mediaLinksMustBePublic": true
+    }
+  }
+}
