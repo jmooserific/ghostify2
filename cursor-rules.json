@@ -82,7 +82,6 @@
     "ghost": {
       "targetFormat": "Ghost JSON 5.0 (importable backup format)",
       "requiredFields": ["posts", "tags", "users"],
-      "defaultAuthorIfMissing": "Imported User",
       "mediaLinksMustBePublic": true
     }
   }
