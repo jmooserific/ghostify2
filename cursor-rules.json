@@ -1,6 +1,10 @@
 {
   "language": "typescript",
   "projectType": "cli-app",
+  "context": {
+    "ghostMigrateRepo": "https://github.com/TryGhost/migrate.git",
+    "description": "Reference the official Ghost migration tools for best practices in Mobiledoc conversion, HTML processing, and Ghost import compatibility"
+  },
   "preferredLibraries": [
     "@oclif/command",
     "chalk",
@@ -82,7 +86,32 @@
     "ghost": {
       "targetFormat": "Ghost JSON 5.0 (importable backup format)",
       "requiredFields": ["posts", "tags", "users"],
-      "mediaLinksMustBePublic": true
+      "mediaLinksMustBePublic": true,
+      "referenceMigrateRepo": "Always check https://github.com/TryGhost/migrate.git for best practices"
+    },
+    "mobiledoc": {
+      "version": "0.3.1",
+      "followGhostPatterns": true,
+      "stripHtmlFromTitles": true,
+      "convertHtmlToMobiledoc": true,
+      "handleImagesAsCards": true,
+      "handleBlockquotesAsSections": true,
+      "cleanTextContent": true,
+      "decodeHtmlEntities": true
+    },
+    "htmlProcessing": {
+      "stripAllHtmlTags": true,
+      "decodeCommonEntities": ["&nbsp;", "&amp;", "&lt;", "&gt;", "&quot;", "&#39;"],
+      "normalizeWhitespace": true,
+      "preserveContentMeaning": true,
+      "avoidRawHtmlInOutput": true
+    },
+    "ghostCompatibility": {
+      "followOfficialSchema": true,
+      "useValidMobiledocStructure": true,
+      "ensureCleanSlugs": true,
+      "validateAuthorInformation": true,
+      "testImportCompatibility": true
     }
   }
 }
