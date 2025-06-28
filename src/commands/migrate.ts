@@ -13,15 +13,14 @@ export default class Migrate extends Command {
   static examples = [
     '$ ghostify migrate',
     '$ ghostify migrate myblog.tumblr.com',
-    '$ ghostify migrate --output ./ghost-export.json',
+    '$ ghostify migrate --output ./custom-export.json',
     '$ ghostify migrate myblog.tumblr.com --limit 100 --include-private',
   ];
 
   static flags = {
     output: Flags.string({
       char: 'o',
-      description: 'Output file path for Ghost JSON',
-      default: './ghost-export.json',
+      description: 'Output file path for Ghost JSON (defaults to blog-name.json)',
     }),
     limit: Flags.integer({
       char: 'l',
@@ -64,9 +63,13 @@ export default class Migrate extends Command {
         process.exit(1);
       }
 
+      // Generate default output filename based on blog name
+      const defaultOutput = `./${this.sanitizeBlogName(blogName)}.json`;
+      const outputPath = flags.output || defaultOutput;
+
       this.log(chalk.blue('🚀 Starting Tumblr to Ghost migration...'));
       this.log(chalk.gray(`📝 Blog: ${blogName}`));
-      this.log(chalk.gray(`📁 Output: ${flags.output}`));
+      this.log(chalk.gray(`📁 Output: ${outputPath}`));
       this.log(chalk.gray(`📊 Limit: ${flags.limit} posts`));
 
       // Initialize components
@@ -89,23 +92,33 @@ export default class Migrate extends Command {
 
       // Create output directory if needed
       if (flags['create-dirs']) {
-        const outputDir = path.dirname(flags.output);
+        const outputDir = path.dirname(outputPath);
         await fs.ensureDir(outputDir);
       }
 
       // Export to Ghost JSON format
       this.log(chalk.blue('📤 Exporting to Ghost JSON...'));
-      await exporter.exportToFile(ghostPosts, flags.output);
-      this.log(chalk.green(`✅ Exported to ${flags.output}`));
+      await exporter.exportToFile(ghostPosts, outputPath);
+      this.log(chalk.green(`✅ Exported to ${outputPath}`));
 
       this.log(chalk.green('🎉 Migration completed successfully!'));
       this.log(chalk.gray(`📊 Summary: ${posts.length} posts migrated`));
       this.log(chalk.gray(`👤 Author: ${config.author.name}`));
-      this.log(chalk.gray(`📁 File: ${path.resolve(flags.output)}`));
+      this.log(chalk.gray(`📁 File: ${path.resolve(outputPath)}`));
 
     } catch (error) {
       this.error(chalk.red(`❌ Migration failed: ${error}`));
       process.exit(1);
     }
+  }
+
+  private sanitizeBlogName(blogName: string): string {
+    // Remove .tumblr.com suffix and sanitize for filename
+    return blogName
+      .replace(/\.tumblr\.com$/i, '') // Remove .tumblr.com
+      .replace(/[^a-zA-Z0-9-_]/g, '-') // Replace invalid chars with hyphens
+      .replace(/-+/g, '-') // Replace multiple hyphens with single
+      .replace(/^-|-$/g, '') // Remove leading/trailing hyphens
+      .toLowerCase();
   }
 } 
