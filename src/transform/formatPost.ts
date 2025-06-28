@@ -2,68 +2,31 @@ import { format } from 'date-fns';
 import { TumblrPost } from '../api/tumblr';
 
 export interface GhostPost {
-  id: string;
-  uuid: string;
+  id: number;
   title: string;
   slug: string;
-  html: string;
-  comment_id: string;
+  mobiledoc: string;
   feature_image?: string;
-  featured: boolean;
-  visibility: string;
-  send_email_when_published: boolean;
-  created_at: string;
-  updated_at: string;
-  published_at: string;
-  custom_excerpt?: string;
-  codeinjection_head?: string;
-  codeinjection_foot?: string;
-  custom_template?: string;
-  canonical_url?: string;
-  tags: GhostTag[];
-  authors: GhostAuthor[];
-  primary_author: GhostAuthor;
-  url: string;
-  excerpt: string;
-  reading_time: number;
-  access: boolean;
-  comments: boolean;
-  og_image?: string;
-  og_title?: string;
-  og_description?: string;
-  twitter_image?: string;
-  twitter_title?: string;
-  twitter_description?: string;
-  meta_title?: string;
-  meta_description?: string;
-  email_subject?: string;
-  frontmatter?: string;
+  featured: number;
+  page: number;
+  status: string;
+  published_at: number;
+  created_at: number;
+  updated_at: number;
+  created_by: number;
+  updated_by: number;
+  author_id: number;
 }
 
 export interface GhostTag {
-  id: string;
+  id: number;
   name: string;
   slug: string;
   description?: string;
-  feature_image?: string;
-  visibility: string;
-  meta_title?: string;
-  meta_description?: string;
-  og_image?: string;
-  og_title?: string;
-  og_description?: string;
-  twitter_image?: string;
-  twitter_title?: string;
-  twitter_description?: string;
-  codeinjection_head?: string;
-  codeinjection_foot?: string;
-  canonical_url?: string;
-  accent_color?: string;
-  url: string;
 }
 
-export interface GhostAuthor {
-  id: string;
+export interface GhostUser {
+  id: number;
   name: string;
   slug: string;
   email: string;
@@ -80,18 +43,31 @@ export interface GhostAuthor {
   meta_description?: string;
   tour?: string[];
   last_seen?: string;
-  created_at: string;
-  updated_at: string;
-  roles: GhostRole[];
-  url: string;
+  created_at: number;
+  updated_at: number;
 }
 
 export interface GhostRole {
-  id: string;
+  id: number;
   name: string;
   description?: string;
-  created_at: string;
-  updated_at: string;
+  created_at: number;
+  updated_at: number;
+}
+
+export interface PostTag {
+  post_id: number;
+  tag_id: number;
+}
+
+export interface PostAuthor {
+  post_id: number;
+  author_id: number;
+}
+
+export interface RoleUser {
+  role_id: number;
+  user_id: number;
 }
 
 export interface AuthorConfig {
@@ -101,39 +77,33 @@ export interface AuthorConfig {
 }
 
 export class PostTransformer {
-  private defaultAuthor: GhostAuthor;
+  private defaultAuthor: GhostUser;
+  private authorId: number = 1;
+  private tagIdCounter: number = 1;
 
   constructor(authorConfig?: AuthorConfig) {
     this.defaultAuthor = this.createDefaultAuthor(authorConfig);
   }
 
   transform(tumblrPost: TumblrPost): GhostPost {
-    const postId = this.generateUUID();
     const createdAt = new Date(tumblrPost.timestamp * 1000);
+    const updatedAt = new Date(tumblrPost.timestamp * 1000);
     
     return {
-      id: tumblrPost.id,
-      uuid: postId,
+      id: parseInt(tumblrPost.id),
       title: this.extractTitle(tumblrPost),
       slug: this.generateSlug(tumblrPost),
-      html: this.convertToHTML(tumblrPost),
-      comment_id: tumblrPost.id,
+      mobiledoc: this.convertToMobiledoc(tumblrPost),
       feature_image: this.extractFeatureImage(tumblrPost),
-      featured: false,
-      visibility: 'public',
-      send_email_when_published: false,
-      created_at: format(createdAt, 'yyyy-MM-dd HH:mm:ss'),
-      updated_at: format(createdAt, 'yyyy-MM-dd HH:mm:ss'),
-      published_at: format(createdAt, 'yyyy-MM-dd HH:mm:ss'),
-      custom_excerpt: this.extractExcerpt(tumblrPost),
-      tags: this.convertTags(tumblrPost.tags),
-      authors: [this.defaultAuthor],
-      primary_author: this.defaultAuthor,
-      url: this.generateUrl(tumblrPost),
-      excerpt: this.extractExcerpt(tumblrPost) || '',
-      reading_time: this.calculateReadingTime(tumblrPost),
-      access: true,
-      comments: true,
+      featured: 0,
+      page: 0,
+      status: 'published',
+      published_at: tumblrPost.timestamp * 1000,
+      created_at: tumblrPost.timestamp * 1000,
+      updated_at: tumblrPost.timestamp * 1000,
+      created_by: this.authorId,
+      updated_by: this.authorId,
+      author_id: this.authorId,
     };
   }
 
@@ -163,6 +133,26 @@ export class PostTransformer {
       default:
         return 'Untitled Post';
     }
+  }
+
+  private convertToMobiledoc(tumblrPost: TumblrPost): string {
+    const content = this.convertToHTML(tumblrPost);
+    
+    // Create a simple Mobiledoc structure
+    // This is a basic Mobiledoc format - for production use, consider using @tryghost/migrate
+    const mobiledoc = {
+      version: '0.3.1',
+      atoms: [],
+      cards: [],
+      markups: [],
+      sections: [
+        [1, 'p', [
+          [0, [], 0, content]
+        ]]
+      ]
+    };
+
+    return JSON.stringify(mobiledoc);
   }
 
   private convertToHTML(tumblrPost: TumblrPost): string {
@@ -311,61 +301,76 @@ export class PostTransformer {
     return undefined;
   }
 
-  private extractExcerpt(tumblrPost: TumblrPost): string | undefined {
-    if (tumblrPost.body) {
-      return this.truncateText(tumblrPost.body.replace(/<[^>]*>/g, ''), 160);
-    }
-    return undefined;
-  }
-
-  private convertTags(tags: string[]): GhostTag[] {
+  convertTags(tags: string[]): GhostTag[] {
     return tags.map(tag => ({
-      id: this.generateUUID(),
+      id: this.tagIdCounter++,
       name: tag,
       slug: this.slugify(tag),
-      visibility: 'public',
-      url: `/tag/${this.slugify(tag)}/`,
+      description: undefined,
     }));
   }
 
-  private createDefaultAuthor(authorConfig?: AuthorConfig): GhostAuthor {
+  createDefaultAuthor(authorConfig?: AuthorConfig): GhostUser {
     const name = authorConfig?.name || 'Imported User';
     const email = authorConfig?.email || 'imported@example.com';
     const slug = authorConfig?.slug || 'imported-user';
+    const now = Date.now();
     
     return {
-      id: this.generateUUID(),
+      id: this.authorId,
       name,
       slug,
       email,
       status: 'active',
-      created_at: format(new Date(), 'yyyy-MM-dd HH:mm:ss'),
-      updated_at: format(new Date(), 'yyyy-MM-dd HH:mm:ss'),
-      roles: [{
-        id: this.generateUUID(),
-        name: 'Author',
-        created_at: format(new Date(), 'yyyy-MM-dd HH:mm:ss'),
-        updated_at: format(new Date(), 'yyyy-MM-dd HH:mm:ss'),
-      }],
-      url: `/author/${slug}/`,
+      created_at: now,
+      updated_at: now,
     };
   }
 
-  private generateUUID(): string {
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-      const r = Math.random() * 16 | 0;
-      const v = c === 'x' ? r : (r & 0x3 | 0x8);
-      return v.toString(16);
-    });
+  createDefaultRole(): GhostRole {
+    const now = Date.now();
+    return {
+      id: 1,
+      name: 'Author',
+      description: 'Authors',
+      created_at: now,
+      updated_at: now,
+    };
+  }
+
+  createPostTags(posts: GhostPost[], tags: GhostTag[]): PostTag[] {
+    const postTags: PostTag[] = [];
+    
+    for (const post of posts) {
+      // For now, we'll link all posts to the first tag if any exist
+      if (tags.length > 0) {
+        postTags.push({
+          post_id: post.id,
+          tag_id: tags[0].id,
+        });
+      }
+    }
+    
+    return postTags;
+  }
+
+  createPostAuthors(posts: GhostPost[]): PostAuthor[] {
+    return posts.map(post => ({
+      post_id: post.id,
+      author_id: this.authorId,
+    }));
+  }
+
+  createRoleUsers(): RoleUser[] {
+    return [{
+      role_id: 1,
+      user_id: this.authorId,
+    }];
   }
 
   private generateSlug(tumblrPost: TumblrPost): string {
     const title = this.extractTitle(tumblrPost);
     return this.slugify(title);
-  }
-
-  private generateUrl(tumblrPost: TumblrPost): string {
-    return `/posts/${this.generateSlug(tumblrPost)}/`;
   }
 
   private slugify(text: string): string {
@@ -379,21 +384,5 @@ export class PostTransformer {
   private truncateText(text: string, maxLength: number): string {
     if (text.length <= maxLength) return text;
     return text.substring(0, maxLength).trim() + '...';
-  }
-
-  private calculateReadingTime(tumblrPost: TumblrPost): number {
-    let text = '';
-    
-    if (tumblrPost.body) {
-      text += tumblrPost.body.replace(/<[^>]*>/g, '');
-    }
-    
-    if (tumblrPost.title) {
-      text += ' ' + tumblrPost.title;
-    }
-
-    // Average reading speed: 200 words per minute
-    const words = text.split(/\s+/).length;
-    return Math.max(1, Math.ceil(words / 200));
   }
 } 
