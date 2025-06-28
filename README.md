@@ -13,6 +13,8 @@ A TypeScript CLI tool to migrate your Tumblr blog posts to Ghost format. This to
 - ✅ Rate limiting and pagination support
 - ✅ Beautiful CLI interface with progress indicators
 - ✅ Comprehensive error handling and validation
+- ✅ Smart default filenames based on blog name
+- ✅ Environment-based configuration
 
 ## Installation
 
@@ -64,34 +66,65 @@ GHOST_AUTHOR_SLUG=your-name
 Migrate all posts from your Tumblr blog:
 
 ```bash
-npm run build
+# Using blog name from .env file
+./bin/ghostify.js migrate
+
+# Or specify blog name directly
 ./bin/ghostify.js migrate yourblog.tumblr.com
 ```
 
 ### Advanced Options
 
 ```bash
-# Specify output file
-./bin/ghostify.js migrate yourblog.tumblr.com --output ./my-ghost-export.json
+# Specify custom output file
+./bin/ghostify.js migrate --output ./my-custom-export.json
 
 # Limit number of posts
-./bin/ghostify.js migrate yourblog.tumblr.com --limit 100
+./bin/ghostify.js migrate --limit 100
 
 # Include private posts (requires OAuth tokens)
-./bin/ghostify.js migrate yourblog.tumblr.com --include-private
+./bin/ghostify.js migrate --include-private
 
 # Disable automatic directory creation
-./bin/ghostify.js migrate yourblog.tumblr.com --no-create-dirs
+./bin/ghostify.js migrate --no-create-dirs
+
+# Combine options
+./bin/ghostify.js migrate myblog.tumblr.com --limit 50 --output ./small-export.json
 ```
 
 ### Command Options
 
-- `--output, -o`: Output file path (default: `./ghost-export.json`)
+- `--output, -o`: Output file path (defaults to `./{blog-name}.json`)
 - `--limit, -l`: Maximum number of posts to migrate (default: 1000)
 - `--include-private`: Include private posts (requires OAuth tokens)
 - `--create-dirs`: Create output directories if they don't exist (default: true)
 
-## Author Configuration
+### Default Filename Behavior
+
+The tool automatically generates descriptive filenames based on your blog name:
+
+- Blog: `myblog.tumblr.com` → File: `./myblog.json`
+- Blog: `awesome-photos.tumblr.com` → File: `./awesome-photos.json`
+- Blog: `johns_blog.tumblr.com` → File: `./johns-blog.json`
+
+This avoids Ghost's restrictions on importing files named "ghost-export.json" and makes it clear which blog the export came from.
+
+## Configuration
+
+### Environment Variables
+
+The tool uses environment variables for configuration. You can set these in your `.env` file:
+
+**Required:**
+- `TUMBLR_API_KEY`: Your Tumblr API key
+
+**Optional:**
+- `TUMBLR_BLOG_NAME`: Your blog name (e.g., `myblog.tumblr.com`)
+- `GHOST_AUTHOR_NAME`: Author name for imported posts
+- `GHOST_AUTHOR_EMAIL`: Author email for imported posts  
+- `GHOST_AUTHOR_SLUG`: Author slug for imported posts
+
+### Author Configuration
 
 Since Tumblr doesn't include author information for posts, you can specify your own author details that will be used for all imported posts. Configure this in your `.env` file:
 
@@ -149,7 +182,7 @@ src/
 │   └── config.ts     # Configuration management
 └── index.ts          # Main orchestration
 bin/
-└── ghostify.ts       # CLI entry point
+└── ghostify.js       # CLI entry point
 ```
 
 ### Available Scripts
@@ -172,24 +205,28 @@ To support new Tumblr post types, edit `src/transform/formatPost.ts` and add a n
    - Make sure you've created a `.env` file with your API key
    - Verify the API key is correct and not the placeholder value
 
-2. **"Tumblr API error: 403 Forbidden"**
+2. **"No blog name specified"**
+   - Either provide the blog name as an argument: `./bin/ghostify.js migrate myblog.tumblr.com`
+   - Or set `TUMBLR_BLOG_NAME` in your `.env` file
+
+3. **"Tumblr API error: 403 Forbidden"**
    - Check that your API key is valid
    - Ensure the blog name is correct (include `.tumblr.com`)
 
-3. **"Failed to fetch posts"**
+4. **"Failed to fetch posts"**
    - The blog might be private or deleted
    - Check your internet connection
    - Verify the blog name format
 
-4. **"Invalid author email format"**
+5. **"Invalid author email format"**
    - Make sure your `GHOST_AUTHOR_EMAIL` is a valid email address
    - Check for typos in the email format
 
-5. **"Invalid author slug format"**
+6. **"Invalid author slug format"**
    - Use only lowercase letters, numbers, and hyphens in `GHOST_AUTHOR_SLUG`
    - Example: `john-doe`, `my-name-123`
 
-6. **Import fails in Ghost**
+7. **Import fails in Ghost**
    - Ensure the JSON file is valid
    - Check that all required fields are present
    - Try importing a smaller subset first
