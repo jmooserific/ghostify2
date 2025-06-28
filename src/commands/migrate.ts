@@ -11,8 +11,9 @@ export default class Migrate extends Command {
   static description = 'Migrate Tumblr blog posts to Ghost format';
 
   static examples = [
+    '$ ghostify migrate',
     '$ ghostify migrate myblog.tumblr.com',
-    '$ ghostify migrate myblog.tumblr.com --output ./ghost-export.json',
+    '$ ghostify migrate --output ./ghost-export.json',
     '$ ghostify migrate myblog.tumblr.com --limit 100 --include-private',
   ];
 
@@ -39,30 +40,39 @@ export default class Migrate extends Command {
 
   static args = {
     blog: Args.string({
-      description: 'Tumblr blog name (e.g., myblog.tumblr.com)',
-      required: true,
+      description: 'Tumblr blog name (e.g., myblog.tumblr.com) - optional if TUMBLR_BLOG_NAME is set in .env',
+      required: false,
     }),
   };
 
   async run(): Promise<void> {
     const { args, flags } = await this.parse(Migrate);
-    const blogName = args.blog;
 
     try {
+      // Load configuration first
+      const config = await loadConfig();
+      this.log(chalk.green('✅ Configuration loaded'));
+      this.log(chalk.gray(`👤 Author: ${config.author.name} (${config.author.email})`));
+
+      // Determine blog name: command line argument takes precedence over config
+      const blogName = args.blog || config.blogName;
+      
+      if (!blogName) {
+        this.error(chalk.red('❌ No blog name specified. Please either:'));
+        this.error(chalk.red('   1. Provide the blog name as an argument: ghostify migrate myblog.tumblr.com'));
+        this.error(chalk.red('   2. Set TUMBLR_BLOG_NAME in your .env file'));
+        process.exit(1);
+      }
+
       this.log(chalk.blue('🚀 Starting Tumblr to Ghost migration...'));
       this.log(chalk.gray(`📝 Blog: ${blogName}`));
       this.log(chalk.gray(`📁 Output: ${flags.output}`));
       this.log(chalk.gray(`📊 Limit: ${flags.limit} posts`));
 
-      // Load configuration
-      const config = await loadConfig();
-      this.log(chalk.green('✅ Configuration loaded'));
-      this.log(chalk.gray(`👤 Author: ${config.author.name} (${config.author.email})`));
-
       // Initialize components
       const api = new TumblrAPI(config.apiKey);
       const transformer = new PostTransformer(config.author);
-      const exporter = new GhostExporter();
+      const exporter = new GhostExporter(config.author);
 
       // Fetch posts from Tumblr
       this.log(chalk.blue('📥 Fetching posts from Tumblr...'));

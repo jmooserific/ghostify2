@@ -7,7 +7,8 @@ import {
   GhostRole,
   PostTag,
   PostAuthor,
-  RoleUser
+  RoleUser,
+  AuthorConfig
 } from '../transform/formatPost';
 
 export interface GhostExport {
@@ -28,6 +29,11 @@ export interface GhostExport {
 
 export class GhostExporter {
   private version = '5.0.0';
+  private authorConfig?: AuthorConfig;
+
+  constructor(authorConfig?: AuthorConfig) {
+    this.authorConfig = authorConfig;
+  }
 
   async exportToFile(posts: GhostPost[], outputPath: string): Promise<void> {
     try {
@@ -133,12 +139,16 @@ export class GhostExporter {
 
     for (const post of posts) {
       if (!authorMap.has(post.author_id)) {
-        // Create a default author if we don't have one
+        // Use the author config if available, otherwise fall back to defaults
+        const name = this.authorConfig?.name || 'Imported User';
+        const email = this.authorConfig?.email || 'imported@example.com';
+        const slug = this.authorConfig?.slug || 'imported-user';
+        
         authorMap.set(post.author_id, {
           id: post.author_id,
-          name: 'Imported User',
-          slug: 'imported-user',
-          email: 'imported@example.com',
+          name,
+          slug,
+          email,
           status: 'active',
           created_at: post.created_at,
           updated_at: post.updated_at,
