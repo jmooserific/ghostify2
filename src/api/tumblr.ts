@@ -19,6 +19,10 @@ export interface TumblrPost {
   note_count: number;
   title?: string;
   body?: string;
+  slug?: string;
+  post_url?: string;
+  summary?: string;
+  short_url?: string;
   photos?: Array<{
     caption: string;
     original_size: {
