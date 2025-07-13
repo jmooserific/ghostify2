@@ -107,36 +107,42 @@ export class PostTransformer {
   }
 
   private extractTitle(tumblrPost: TumblrPost): string {
-    // Use the slug as title if available, otherwise generate from content
-    if (tumblrPost.slug) {
-      return this.humanizeSlug(tumblrPost.slug);
+    // 1. Use the Tumblr title field (if present)
+    if (tumblrPost.title && tumblrPost.title.trim()) {
+      return tumblrPost.title.trim();
     }
 
-    if (tumblrPost.title) {
-      return tumblrPost.title;
+    // 2. If no title, use the first sentence or 6–12 words of the post body text
+    if (tumblrPost.body && tumblrPost.body.trim()) {
+      const plainText = this.stripHtml(tumblrPost.body);
+      const decodedText = this.decodeHtmlEntities(plainText);
+      
+      // Try to get the first sentence
+      const firstSentence = this.extractFirstSentence(decodedText);
+      if (firstSentence && firstSentence.length > 10) {
+        return firstSentence;
+      }
+      
+      // If no good sentence, get first 8-10 words
+      const firstWords = this.extractFirstWords(decodedText, 10);
+      if (firstWords && firstWords.length > 5) {
+        return firstWords;
+      }
     }
 
-    // Generate title based on post type and content
-    switch (tumblrPost.type) {
-      case 'text':
-        return tumblrPost.body ? this.truncateText(this.stripHtml(tumblrPost.body), 60) : 'Untitled Post';
-      case 'photo':
-        return 'Photo Post';
-      case 'quote':
-        return tumblrPost.quote_text ? this.truncateText(tumblrPost.quote_text, 60) : 'Quote Post';
-      case 'link':
-        return tumblrPost.title || 'Link Post';
-      case 'chat':
-        return 'Chat Post';
-      case 'audio':
-        return 'Audio Post';
-      case 'video':
-        return 'Video Post';
-      case 'answer':
-        return tumblrPost.question ? this.truncateText(tumblrPost.question, 60) : 'Answer Post';
-      default:
-        return 'Untitled Post';
+    // 3. If body is empty or minimal, fall back to post slug
+    if (tumblrPost.slug && tumblrPost.slug.trim()) {
+      const humanizedSlug = this.humanizeSlug(tumblrPost.slug);
+      const truncatedSlug = this.truncateToWords(humanizedSlug, 12);
+      if (truncatedSlug.length > 5) {
+        return truncatedSlug;
+      }
     }
+
+    // 4. Fallback: Use formatted post date
+    const timestamp = new Date(tumblrPost.timestamp * 1000);
+    const dateString = timestamp.toISOString().split('T')[0]; // YYYY-MM-DD format
+    return `Post from ${dateString}`;
   }
 
   private convertToHtml(tumblrPost: TumblrPost): string {
@@ -413,5 +419,71 @@ export class PostTransformer {
   private truncateText(text: string, maxLength: number): string {
     if (text.length <= maxLength) return text;
     return text.substring(0, maxLength).trim() + '...';
+  }
+
+  private decodeHtmlEntities(text: string): string {
+    const entities: Record<string, string> = {
+      '&amp;': '&',
+      '&lt;': '<',
+      '&gt;': '>',
+      '&quot;': '"',
+      '&#39;': "'",
+      '&apos;': "'",
+      '&nbsp;': ' ',
+      '&hellip;': '...',
+      '&mdash;': '—',
+      '&ndash;': '–',
+      '&lsquo;': "'",
+      '&rsquo;': "'",
+      '&ldquo;': '"',
+      '&rdquo;': '"'
+    };
+    
+    return text.replace(/&[a-zA-Z0-9#]+;/g, (match) => {
+      return entities[match] || match;
+    });
+  }
+
+  private extractFirstSentence(text: string): string {
+    // Remove extra whitespace and normalize
+    const cleanText = text.trim().replace(/\s+/g, ' ');
+    
+    // Look for sentence endings: . ! ? followed by space or end of string
+    const sentenceMatch = cleanText.match(/^[^.!?]*[.!?](?:\s|$)/);
+    if (sentenceMatch) {
+      const sentence = sentenceMatch[0].trim();
+      // Ensure it's not too short (likely not a real sentence)
+      if (sentence.length > 10 && sentence.split(' ').length > 3) {
+        return sentence;
+      }
+    }
+    
+    return '';
+  }
+
+  private extractFirstWords(text: string, maxWords: number): string {
+    // Remove extra whitespace and normalize
+    const cleanText = text.trim().replace(/\s+/g, ' ');
+    
+    // Split into words and take the first maxWords
+    const words = cleanText.split(/\s+/).slice(0, maxWords);
+    
+    // Filter out very short words (likely not meaningful)
+    const meaningfulWords = words.filter(word => word.length > 1);
+    
+    if (meaningfulWords.length >= 3) {
+      return meaningfulWords.join(' ');
+    }
+    
+    return '';
+  }
+
+  private truncateToWords(text: string, maxWords: number): string {
+    const words = text.split(/\s+/);
+    if (words.length <= maxWords) {
+      return text;
+    }
+    
+    return words.slice(0, maxWords).join(' ');
   }
 } 
