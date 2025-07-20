@@ -67,6 +67,11 @@ interface Mobiledoc {
   sections: MobiledocSection[];
 }
 
+// Standalone utility function to strip HTML tags
+function stripHtml(html: string): string {
+  return html.replace(/<[^>]*>/g, '');
+}
+
 export class PostTransformer {
   private authorConfig?: AuthorConfig;
 
@@ -114,7 +119,7 @@ export class PostTransformer {
 
     // 2. If no title, use the first sentence or 6–12 words of the post body text
     if (tumblrPost.body && tumblrPost.body.trim()) {
-      const plainText = this.stripHtml(tumblrPost.body);
+      const plainText = stripHtml(tumblrPost.body);
       const decodedText = this.decodeHtmlEntities(plainText);
       
       // Try to get the first sentence
@@ -145,176 +150,117 @@ export class PostTransformer {
     return `Post from ${dateString}`;
   }
 
-  private convertToHtml(tumblrPost: TumblrPost): string {
-    // Process content based on post type
-    switch (tumblrPost.type) {
-      case 'text':
-        return this.processTextPost(tumblrPost);
-      case 'photo':
-        return this.processPhotoPost(tumblrPost);
-      case 'quote':
-        return this.processQuotePost(tumblrPost);
-      case 'link':
-        return this.processLinkPost(tumblrPost);
-      case 'chat':
-        return this.processChatPost(tumblrPost);
-      case 'audio':
-        return this.processAudioPost(tumblrPost);
-      case 'video':
-        return this.processVideoPost(tumblrPost);
-      case 'answer':
-        return this.processAnswerPost(tumblrPost);
-      default:
-        return `<p>Unsupported post type: ${tumblrPost.type}</p>`;
-    }
-  }
+  // Helper to convert Tumblr gallery HTML to Ghost gallery HTML
+  private convertTumblrGalleryToGhostGallery(body: string): string {
+    // More robust regex: match <div ... class="...npf_row..." ...> ... </div>
+    const rowRegex = /<div[^>]*class=["'][^"']*npf_row[^"']*["'][^>]*>([\s\S]*?)<\/div>/gi;
+    let match;
+    const galleryRows: string[][] = [];
+    let lastIndex = 0;
+    let galleryFound = false;
+    let galleryStart = -1;
+    let rowCount = 0;
 
-  private processTextPost(tumblrPost: TumblrPost): string {
-    if (!tumblrPost.body) {
-      return '<p></p>';
+    // Find all rows and extract image srcs, preserving row structure
+    while ((match = rowRegex.exec(body)) !== null) {
+      if (!galleryFound) galleryStart = match.index;
+      galleryFound = true;
+      rowCount++;
+      const rowHtml = match[1];
+      // Find all <img ...> in this row, regardless of nesting
+      const imgRegex = /<img [^>]*src=["']([^"']+)["'][^>]*>/gi;
+      let imgMatch;
+      const rowImages: string[] = [];
+      while ((imgMatch = imgRegex.exec(rowHtml)) !== null) {
+        rowImages.push(imgMatch[1]);
+      }
+      if (rowImages.length > 0) {
+        galleryRows.push(rowImages);
+      }
+      lastIndex = rowRegex.lastIndex;
     }
 
-    // Extract images from the HTML
-    const images = this.extractImagesFromHtml(tumblrPost.body);
-    
-    // Extract text content
-    const textContent = this.extractTextFromHtml(tumblrPost.body);
-    
-    let html = '';
-    
-    // If we have images, process them as a photo post
-    if (images.length > 0) {
-      // Add text content first if it exists
-      if (textContent.trim()) {
-        html += textContent;
+    // Debug: log the number of rows found for this post
+    if (galleryFound) {
+      // eslint-disable-next-line no-console
+      console.log(`[Ghostify] Found ${rowCount} gallery rows in post body.`);
+    }
+
+    // Build Ghost gallery HTML if we found a gallery
+    let galleryHtml = '';
+    if (galleryFound && galleryRows.length > 0) {
+      // Ghost galleries require 2-3 images per row, so we need to combine single-image rows
+      const ghostRows: string[][] = [];
+      let currentRow: string[] = [];
+      
+      for (const tumblrRow of galleryRows) {
+        // Add all images from this Tumblr row to our current Ghost row
+        currentRow.push(...tumblrRow);
+        
+        // If we have 2 or 3 images, create a Ghost row
+        if (currentRow.length >= 2 && currentRow.length <= 3) {
+          ghostRows.push([...currentRow]);
+          currentRow = [];
+        }
+        // If we have more than 3 images, split into multiple rows
+        else if (currentRow.length > 3) {
+          // Take first 3 images for this row
+          ghostRows.push(currentRow.slice(0, 3));
+          // Keep remaining images for next row
+          currentRow = currentRow.slice(3);
+        }
+        // If we have 1 image, continue to next Tumblr row to try to get more images
       }
       
-      // Add each image
-      for (const imageUrl of images) {
-        html += `<img src="${imageUrl}" alt="" />`;
+      // Handle any remaining images (should be 0 or 1)
+      if (currentRow.length === 1) {
+        // Single image left - add it to the last row if it has 2 images, otherwise let Ghost handle it
+        if (ghostRows.length > 0 && ghostRows[ghostRows.length - 1].length === 2) {
+          ghostRows[ghostRows.length - 1].push(currentRow[0]);
+        } else {
+          // Let Ghost handle the single image naturally
+          ghostRows.push([currentRow[0]]);
+        }
       }
-    } else {
-      // No images, process as regular text
-      html = this.cleanHtml(tumblrPost.body);
+      
+      // Build the HTML
+      galleryHtml += '<figure class="kg-card kg-gallery-card kg-width-wide"><div class="kg-gallery-container">';
+      for (const row of ghostRows) {
+        galleryHtml += '<div class="kg-gallery-row">';
+        for (const imgSrc of row) {
+          galleryHtml += `<div class="kg-gallery-image"><img src="${imgSrc}" loading="lazy" alt="" /></div>`;
+        }
+        galleryHtml += '</div>';
+      }
+      galleryHtml += '</div></figure>';
     }
-    
+
+    // Extract text before the first gallery (if any)
+    let textBefore = '';
+    if (galleryFound && galleryStart > 0) {
+      textBefore = body.slice(0, galleryStart);
+    } else if (!galleryFound) {
+      textBefore = body;
+    }
+
+    // Extract text after the last gallery (if any)
+    let textAfter = '';
+    if (galleryFound && lastIndex < body.length) {
+      textAfter = body.slice(lastIndex);
+    }
+
+    // Compose final HTML
+    let html = '';
+    if (textBefore.trim()) html += textBefore;
+    if (galleryHtml) html += galleryHtml;
+    if (textAfter.trim()) html += textAfter;
     return html || '<p></p>';
   }
 
-  private processPhotoPost(tumblrPost: TumblrPost): string {
-    let html = '';
-    
-    // Extract images from the body HTML if it exists
-    const images = this.extractImagesFromHtml(tumblrPost.body || '');
-    
-    // Add text content before images if it exists
-    const textContent = this.extractTextFromHtml(tumblrPost.body || '');
-    if (textContent.trim()) {
-      html += textContent;
-    }
-
-    // Add each image
-    for (const imageUrl of images) {
-      html += `<img src="${imageUrl}" alt="" />`;
-    }
-    
-    return html || '<p></p>';
-  }
-
-  private processQuotePost(tumblrPost: TumblrPost): string {
-    const quoteText = tumblrPost.quote_text || '';
-    const quoteSource = tumblrPost.quote_source || '';
-    
-    let html = '<blockquote>';
-    html += `<p>${this.escapeHtml(quoteText)}</p>`;
-    if (quoteSource) {
-      html += `<cite>— ${this.escapeHtml(quoteSource)}</cite>`;
-    }
-    html += '</blockquote>';
-    
-    return html;
-  }
-
-  private processLinkPost(tumblrPost: TumblrPost): string {
-    const title = tumblrPost.title || 'Link';
-    const url = tumblrPost.link_url || '';
-    const description = tumblrPost.body || '';
-    
-    let html = '<div class="link-post">';
-    html += `<h3><a href="${url}">${this.escapeHtml(title)}</a></h3>`;
-    if (description) {
-      html += `<p>${this.cleanHtml(description)}</p>`;
-    }
-    html += '</div>';
-    
-    return html;
-  }
-
-  private processChatPost(tumblrPost: TumblrPost): string {
-    if (!tumblrPost.chat || tumblrPost.chat.length === 0) {
-      return '<p>No chat content</p>';
-    }
-
-    let html = '<div class="chat-post">';
-    for (const message of tumblrPost.chat) {
-      html += '<div class="chat-message">';
-      html += `<span class="chat-name">${this.escapeHtml(message.name)}:</span>`;
-      html += `<span class="chat-text">${this.escapeHtml(message.phrase)}</span>`;
-      html += '</div>';
-    }
-    html += '</div>';
-    
-    return html;
-  }
-
-  private processAudioPost(tumblrPost: TumblrPost): string {
-    let html = '';
-    
-    if (tumblrPost.audio_url) {
-      html += `<audio controls><source src="${tumblrPost.audio_url}" type="audio/mpeg">Your browser does not support the audio element.</audio>`;
-    } else {
-      html += '<p>No audio found</p>';
-    }
-
-    // Add any text content
-    if (tumblrPost.body) {
-      html += this.cleanHtml(tumblrPost.body);
-    }
-    
-    return html;
-  }
-
-  private processVideoPost(tumblrPost: TumblrPost): string {
-    let html = '';
-    
-    if (tumblrPost.video_url) {
-      html += `<video controls><source src="${tumblrPost.video_url}" type="video/mp4">Your browser does not support the video element.</video>`;
-    } else {
-      html += '<p>No video found</p>';
-    }
-
-    // Add any text content
-    if (tumblrPost.body) {
-      html += this.cleanHtml(tumblrPost.body);
-    }
-    
-    return html;
-  }
-
-  private processAnswerPost(tumblrPost: TumblrPost): string {
-    let html = '<div class="answer-post">';
-    
-    if (tumblrPost.question) {
-      html += `<div class="question"><strong>Q: ${this.escapeHtml(tumblrPost.question)}</strong></div>`;
-    }
-    
-    if (tumblrPost.answer) {
-      html += `<div class="answer"><strong>A: ${this.escapeHtml(tumblrPost.answer)}</strong></div>`;
-    }
-    
-    html += '</div>';
-    
-    return html;
+  private convertToHtml(tumblrPost: TumblrPost): string {
+    // Treat all posts the same: convert galleries, preserve rest of HTML
+    const body = tumblrPost.body || '';
+    return this.convertTumblrGalleryToGhostGallery(body);
   }
 
   private extractImagesFromHtml(html: string): string[] {
@@ -335,32 +281,7 @@ export class PostTransformer {
   private extractTextFromHtml(html: string): string {
     // Remove all img tags and their content
     let text = html.replace(/<img[^>]*>/gi, '');
-    
-    // Clean up any remaining HTML
-    text = this.cleanHtml(text);
-    
     return text.trim();
-  }
-
-  private cleanHtml(html: string): string {
-    // Remove Tumblr-specific classes and attributes
-    html = html.replace(/class="[^"]*"/g, '');
-    html = html.replace(/data-[^=]*="[^"]*"/g, '');
-    html = html.replace(/srcset="[^"]*"/g, '');
-    html = html.replace(/sizes="[^"]*"/g, '');
-    
-    // Clean up empty elements
-    html = html.replace(/<p><\/p>/g, '');
-    html = html.replace(/<div><\/div>/g, '');
-    
-    // Normalize whitespace
-    html = html.replace(/\s+/g, ' ');
-    
-    return html.trim();
-  }
-
-  private stripHtml(html: string): string {
-    return html.replace(/<[^>]*>/g, '');
   }
 
   private escapeHtml(text: string): string {
